@@ -8,3 +8,6 @@ Revision history for Perl extension BitstringSearch.
 	- added and update feature to prevent complete rebuilds
 	- couple of safety checks to prevent duplicate enties
 	- boolean returns for insert/update checks
+
+0.05  Tue Dec 09 11:23:00 2003
+	- modified searchWord to transfer bitstring to memory

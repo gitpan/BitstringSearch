@@ -21,12 +21,14 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw( );
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use DB_File; 
 use Carp; 
 use Fcntl; 
 
+#
+# new - no arguements
 sub new { 
 	my $class = shift; 
 	my $self = {}; 
@@ -45,6 +47,8 @@ sub new {
 #	%db_Rev  - The key of this database is the index number of the
 #	           bitstring from %db_Data and holds the full path to
 #	           the document it represents
+#	%db_File - Contains a list of all indexed files and the value is
+#                  the bitstring index number
 sub initDb { 
  
 	my $self = shift; 
@@ -92,6 +96,8 @@ sub initDb {
 	untie %db_File; 
  
 	_myUnlock($lock);
+
+	return 1;
 
 }
 
@@ -272,7 +278,7 @@ sub searchWord {
 	my $self = shift;
 	my %params = @_; 
 	my (%db_Data, %db_Name, %db_Rev);
-	my ($tmpCnt, $totalDocs, @list); 
+	my ($tmpCnt, $totalDocs, @list, $tstring); 
 	my ($lock);
  
 	$self->{'Name'}         = $params{'Name'};
@@ -290,13 +296,20 @@ sub searchWord {
 		or croak "Can not open db: $!";
 	tie(%db_Rev, "DB_File", $self->{'Name'} . '_Rev', O_RDWR|O_CREAT, 0600, $DB_HASH)
 		or croak "Can not open db: $!"; 
+
+	# search the bit string for docs containing word
 	if($db_Data{$self->{'Word'}}) {
+
+		# increase the speed by transferring to memory
+		$tstring = $db_Data{$self->{'Word'}};
 		for($tmpCnt = 0; $tmpCnt < $totalDocs; $tmpCnt++) { 
-			if(vec($db_Data{$self->{'Word'}}, $tmpCnt, 1)) {
-				push(@list, $db_Rev{$tmpCnt}); 
+			if(vec($tstring, $tmpCnt, 1)) { 
+				push(@list, $db_Rev{$tmpCnt});
 			} 
-		} 
+		}
+			
 	}
+
 	untie(%db_Rev);
 	untie(%db_Data);
  
@@ -351,7 +364,7 @@ BitstringSearch - Perl extension for indexing text documents
   $o = BitstringSearch->new();
 
   # create and load database
-  $o->initDb( 
+  $result = $o->initDb( 
     'Name'          => '/tmp/testDatabase',
     'TotalDocs'     => '500', 
     'MinChars'      => '4',

@@ -7,8 +7,9 @@ use Benchmark;
 
 
 $databaseName = '/tmp/test1';
-$totalDocs = 500;
-$wordList = '/usr/share/dict/words';
+$totalDocs = 1000000;
+#$wordList = '/usr/share/dict/words';
+$wordList = './shortWordList';
 $minChars = 3;
 
 $o = BitstringSearch->new();
@@ -22,7 +23,7 @@ $o->initDb(
 ); 
 
 # use the HOWTOs... should take 5 minutes to index on a P4 1.5 using 1000 for total docs
-@tmp = </usr/doc/Linux-HOWTOs/A*HOWTO>;
+@tmp = </usr/doc/Linux-HOWTOs/X*HOWTO>;
 
 
 $t0 = new Benchmark;
