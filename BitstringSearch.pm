@@ -21,11 +21,12 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw( );
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use DB_File; 
 use Carp; 
 use Fcntl; 
+use Benchmark;
 
 #
 # new - no arguements
@@ -136,6 +137,7 @@ sub insertTextFile {
 		# find next empty slot and grab global values
 		tie(%db_Name, "DB_File", $self->{'Name'}, O_RDWR|O_CREAT, 0600, $DB_HASH)
 			or croak "Can not open db: $!";
+
 		for($cnt = 0; $cnt < $db_Name{'TotalDocs'}; $cnt++) { 
 			$bit = unpack("b", vec($db_Name{'EmptySlot'}, $cnt, 1));
 			if(!$bit) { 
@@ -213,6 +215,7 @@ sub updateTextFile {
 
 	tie(%db_File, "DB_File", $self->{'Name'} . '_File', O_RDWR|O_CREAT, 0600, $DB_HASH)
 		or croak "Can not open db: $!";
+
 	if(! defined($db_File{$self->{'File'}})) {
 		untie %db_File;
 		_myUnlock($lock);
@@ -225,6 +228,7 @@ sub updateTextFile {
 		untie(%db_Name); 
 		$cnt = $db_File{$self->{'File'}};
 	} 
+
 	untie %db_File;
 
 	# update the doc
@@ -262,6 +266,64 @@ sub updateTextFile {
 	_myUnlock($lock);
 
 	return 1;
+}
+
+#  
+# removeTextFile - removes already inserted plain text files
+#  
+#       Name - is the name of the database you wish to remove from
+#       File - is the name of the file and full path you wish to delete
+sub removeTextFile {
+
+	my $self = shift; 
+	my %params = @_; 
+	my (%db_Data, %db_Name, %db_Rev, %db_File); 
+	my ($lock, $num, $bs, $word); 
+ 
+	$self->{'Name'}         = $params{'Name'}; 
+	$self->{'File'}         = $params{'File'}; 
+ 
+        $lock = _myLock($self->{'Name'}); 
+
+	tie(%db_File, "DB_File", $self->{'Name'} . '_File', O_RDWR|O_CREAT, 0600, $DB_HASH)
+		or croak "Can not open db: $!";
+
+	if(! defined($db_File{$self->{'File'}})) {
+		untie(%db_File);
+		_myUnlock($lock);
+		return 0;
+	} else {
+
+		$num = $db_File{$self->{'File'}};
+		delete $db_File{$self->{'File'}};
+		untie(%db_File);
+
+		tie(%db_Rev, "DB_File", $self->{'Name'} . '_Rev', O_RDWR|O_CREAT, 0600, $DB_HASH)
+			or croak "Can not open db: $!";
+		delete $db_Rev{$num};
+		untie(%db_Rev);
+
+		tie(%db_Data, "DB_File", $self->{'Name'} . '_Data', O_RDWR|O_CREAT, 0600, $DB_HASH)
+			or croak "Can not open db: $!";
+        	foreach $word (keys %db_Data) {
+        	        $bs = $db_Data{$word};
+        	        vec($bs, $num, 1) = 0;
+        	        $db_Data{$word} = $bs;
+        	}
+		untie(%db_Data);
+
+                # find next empty slot and grab global values
+                tie(%db_Name, "DB_File", $self->{'Name'}, O_RDWR|O_CREAT, 0600, $DB_HASH)
+                        or croak "Can not open db: $!";
+		vec($db_Name{'EmptySlot'}, $num, 1) = '0';
+                untie(%db_Name);
+
+	}
+
+	_myUnlock($lock);
+
+	return 1;
+
 }
 
 #
@@ -319,6 +381,32 @@ sub searchWord {
  
 }
 
+# 
+# listAllFiles - returns a list of all indexed files
+# 
+#       Name - is the name of the database you wish to view 
+sub listAllFiles {
+
+	my $self = shift;
+	my ($params) = @_;
+        my (%db_File);
+	my ($lock, @list);
+ 
+	$self->{'Name'}         = $params;
+
+	$lock = _myLock($self->{'Name'});
+
+	tie(%db_File, "DB_File", $self->{'Name'} . '_File', O_RDWR|O_CREAT, 0600, $DB_HASH) 
+		or croak "Can not open db: $!"; 
+	@list = keys %db_File;
+	untie(%db_File);
+
+	_myUnlock($lock);
+
+	return @list;
+
+}
+
 sub _myLock {
  
         my $file = shift;
@@ -338,7 +426,7 @@ sub _myLock {
 sub _myUnlock {
  
         my $lock = shift;
- 
+
         flock($lock, 8); 
         close($lock);
  
@@ -382,12 +470,21 @@ BitstringSearch - Perl extension for indexing text documents
     'Name'          => '/tmp/testDatabase',
     'File'          => $somefile
   );
+
+  # removes an existing text file
+  $r = $o->removeTextFile(
+    'Name'          => '/tmp/testDatabase',
+    'File'          => $somefile
+  ); 
  
   # search for documents containing a specific word
   @list = $o->searchWord( 
     'Name'          => '/tmp/testDatabase',
     'Word'          => 'software' 
   ); 
+
+  # list all documents indexed
+  @list = $o->listAllFiles('/tmp/testDatabase');
 
 =head1 DESCRIPTION
 
@@ -408,10 +505,16 @@ of good words to index.
     - Name	=> name of database to update into
     - File	=> name of file to update
 
+  removeTextFile
+    - Name	=> name of database to delete from
+    - File	=> name of file to remove
+
   searchWord
     - Name	=> name of database to search
     - Word	=> return list of document containing Word
 
+  listAllFiles
+    - Name	=> name of the database to list inserted documents
 
 =head2 EXPORT
 

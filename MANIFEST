@@ -8,6 +8,9 @@ example/
 example/buildIndex.pl
 example/myResults.txt
 example/searchIndex.pl
+example/listDocs.pl
 example/insertTextDoc.pl
 example/updateTextDoc.pl
-
+example/shortWordList
+example/removeTextDoc.pl
+example/justInit.pl

@@ -10,4 +10,11 @@ Revision history for Perl extension BitstringSearch.
 	- boolean returns for insert/update checks
 
 0.05  Tue Dec 09 11:23:00 2003
-	- modified searchWord to transfer bitstring to memory
+	- modified searchWord to transfer bitstring to memory which
+	  increases search result speeds
+
+0.06  Tue Dec 09 15:42:00 2003
+	- added listAllFiles() which returns all files currently 
+	  inserted into the database
+	- added removeTextFile which deletes entries from the
+	  database
