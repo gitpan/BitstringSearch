@@ -21,12 +21,11 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw( );
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use DB_File; 
 use Carp; 
 use Fcntl; 
-use Benchmark;
 
 sub new { 
 	my $class = shift; 
@@ -50,7 +49,7 @@ sub initDb {
  
 	my $self = shift; 
 	my %params = @_; 
-	my (%db_Name, %db_Data, %db_Rev); 
+	my (%db_Name, %db_Data, %db_Rev, %db_File); 
 	my ($lock);
  
 	$self->{'Name'}         = $params{'Name'}; 
@@ -87,6 +86,10 @@ sub initDb {
 	tie(%db_Rev, "DB_File", $self->{'Name'} . '_Rev', O_RDWR|O_CREAT, 0600, $DB_HASH)
 		or croak "Can not open db: $!"; 
 	untie %db_Rev; 
+
+	tie(%db_File, "DB_File", $self->{'Name'} . '_File', O_RDWR|O_CREAT, 0600, $DB_HASH)
+		or croak "Can not open db: $!"; 
+	untie %db_File; 
  
 	_myUnlock($lock);
 
@@ -108,26 +111,43 @@ sub insertTextFile {
  
 	my $self = shift;
 	my %params = @_; 
-	my (%db_Data, %db_Name, %db_Rev);
+	my (%db_Data, %db_Name, %db_Rev, %db_File);
 	my ($cnt, $bit, $minChars, $file, @words, $word, %uniq, $lock); 
  
 	$self->{'Name'}         = $params{'Name'};
 	$self->{'File'}         = $params{'File'};
 
 	$lock = _myLock($self->{'Name'});
- 
-	tie(%db_Name, "DB_File", $self->{'Name'}, O_RDWR|O_CREAT, 0600, $DB_HASH)
-		or croak "Can not open db: $!";
-	for($cnt = 0; $cnt < $db_Name{'TotalDocs'}; $cnt++) { 
-		$bit = unpack("b", vec($db_Name{'EmptySlot'}, $cnt, 1));
-		if(!$bit) { 
-			vec($db_Name{'EmptySlot'}, $cnt, 1) = '1';
-			last; 
+
+	# make sure file is not already checked in
+	tie(%db_File, "DB_File", $self->{'Name'} . '_File', O_RDWR|O_CREAT, 0600, $DB_HASH)
+		or croak "Can not open db: $!"; 
+	if($db_File{$self->{'File'}}) {
+		untie %db_File;
+		_myUnlock($lock);
+		return 0;
+	} else {
+		# find next empty slot and grab global values
+		tie(%db_Name, "DB_File", $self->{'Name'}, O_RDWR|O_CREAT, 0600, $DB_HASH)
+			or croak "Can not open db: $!";
+		for($cnt = 0; $cnt < $db_Name{'TotalDocs'}; $cnt++) { 
+			$bit = unpack("b", vec($db_Name{'EmptySlot'}, $cnt, 1));
+			if(!$bit) { 
+				vec($db_Name{'EmptySlot'}, $cnt, 1) = '1';
+				last; 
+			} 
 		} 
-	} 
-	$minChars = $db_Name{'MinChars'};
-	untie(%db_Name);
- 
+		if($bit) {
+			croak "Database is full... you must rebuild with a larger TotalDocs";
+		}
+		$minChars = $db_Name{'MinChars'};
+		untie(%db_Name);
+
+		$db_File{$self->{'File'}} = $cnt;
+
+	}
+	untie %db_File; 
+
 	tie(%db_Rev, "DB_File", $self->{'Name'} . '_Rev', O_RDWR|O_CREAT, 0600, $DB_HASH)
 		or croak "Can not open db: $!";
 	$db_Rev{$cnt} = $self->{'File'}; 
@@ -157,7 +177,85 @@ sub insertTextFile {
 	untie(%db_Data);
  
 	_myUnlock($lock);
+
+	return 1;
  
+}
+
+# 
+# updateTextFile - updates already inserted plain text files
+# 
+#       Name - is the name of the database you wish to insert into
+#       File - is the name of the file and full path you wish to index
+#        
+# This is almost the same as insertTextFile but all the bitstrings positions
+# representing the doc being updated are zero'd first then re-inserted
+# 
+# This process PAINFULLY slow but it works and is less painful then rebuilding
+# an entire new database to replace the current one for a few docs
+sub updateTextFile {
+
+	my $self = shift; 
+	my %params = @_; 
+	my (%db_Data, %db_Name, %db_Rev, %db_File); 
+	my ($cnt, $bit, $minChars, $file, @words, $word, %uniq, $lock); 
+ 
+	$self->{'Name'}         = $params{'Name'}; 
+	$self->{'File'}         = $params{'File'}; 
+ 
+        $lock = _myLock($self->{'Name'}); 
+
+	tie(%db_File, "DB_File", $self->{'Name'} . '_File', O_RDWR|O_CREAT, 0600, $DB_HASH)
+		or croak "Can not open db: $!";
+	if(! defined($db_File{$self->{'File'}})) {
+		untie %db_File;
+		_myUnlock($lock);
+		return 0;
+	} else {
+		# find next empty slot and grab global values
+		tie(%db_Name, "DB_File", $self->{'Name'}, O_RDWR|O_CREAT, 0600, $DB_HASH)
+			or croak "Can not open db: $!";
+		$minChars = $db_Name{'MinChars'};
+		untie(%db_Name); 
+		$cnt = $db_File{$self->{'File'}};
+	} 
+	untie %db_File;
+
+	# update the doc
+        tie(%db_Data, "DB_File", $self->{'Name'} . '_Data', O_RDWR|O_CREAT, 0600, $DB_HASH)
+                or croak "Can not open db: $!"; 
+
+	# set all previous finds to zero
+	foreach $word (keys %db_Data) {
+		my $bs = $db_Data{$word};
+		vec($bs, $cnt, 1) = 0; 
+		$db_Data{$word} = $bs;
+	}
+
+        open(IN, "< $self->{'File'}") 
+                or croak "File for insert does not exist: $!";
+ 
+        undef $/;
+        $file = lc <IN>;
+        $file =~ s/^[\W|0-9|\s|_]+//;
+        $file =~ s/[\W|0-9|\s|_]+/ /g;
+        $file =~ s/[\W|0-9|\s|_]+$//g;
+        @words = grep { ! $uniq{$_} ++ } split(/\s+/, $file);
+        foreach $word (@words) { 
+                chomp $word; 
+                next unless($word =~ /^[a-z_]{$minChars,}$/);
+                next unless($db_Data{$word}); 
+                my $bs = $db_Data{$word}; 
+                vec($bs, $cnt, 1) = 1; 
+                $db_Data{$word} = $bs; 
+        } 
+ 
+        close(IN);
+        untie(%db_Data);
+
+	_myUnlock($lock);
+
+	return 1;
 }
 
 #
@@ -233,6 +331,10 @@ sub _myUnlock {
  
 } 
 
+sub DESTROY {
+    my $self = shift ;
+}
+
 1;
 __END__
 # Below is stub documentation for your module. You'd better edit it!
@@ -257,7 +359,13 @@ BitstringSearch - Perl extension for indexing text documents
   ); 
 
   # insert a text file
-  $o->insertTextFile(
+  $r = $o->insertTextFile(
+    'Name'          => '/tmp/testDatabase',
+    'File'          => $somefile
+  );
+
+  # update an existing text file
+  $r = $o->updateTextFile(
     'Name'          => '/tmp/testDatabase',
     'File'          => $somefile
   );
@@ -282,6 +390,10 @@ of good words to index.
   insertTextFile
     - Name	=> name of database to insert into
     - File	=> name of file to insert
+
+  updateTextFile
+    - Name	=> name of database to update into
+    - File	=> name of file to update
 
   searchWord
     - Name	=> name of database to search

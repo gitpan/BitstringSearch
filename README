@@ -1,7 +1,7 @@
-BitstringSearch version 0.03
+BitstringSearch version 0.04
 ======================
 
-BitstringSearch is a text document indexer for fast word searches.
+BitstringSearch create a searchable index for text documents
 
 INSTALLATION
 

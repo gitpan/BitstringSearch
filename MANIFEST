@@ -4,3 +4,10 @@ Makefile.PL
 MANIFEST
 README
 t/1.t
+example/
+example/buildIndex.pl
+example/myResults.txt
+example/searchIndex.pl
+example/insertTextDoc.pl
+example/updateTextDoc.pl
+

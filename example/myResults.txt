@@ -1,0 +1,29 @@
+
+# 10000 text documents
+
+./searchIndex.pl this that some happy the abcd doggy bike author CODE apple foo apache the killer hungry a of party
+ 
+======= Times =======
+ 
+Total docs containing this:      153     0 wallclock secs ( 0.31 usr +  0.00 sys =  0.31 CPU)
+Total docs containing that:      151     0 wallclock secs ( 0.29 usr +  0.00 sys =  0.29 CPU)
+Total docs containing some:      152     1 wallclock secs ( 0.28 usr +  0.00 sys =  0.28 CPU)
+Total docs containing happy:     50      0 wallclock secs ( 0.32 usr +  0.00 sys =  0.32 CPU)
+Total docs containing the:       153     1 wallclock secs ( 0.50 usr +  0.00 sys =  0.50 CPU)
+Total docs containing abcd:      0       0 wallclock secs ( 0.00 usr +  0.00 sys =  0.00 CPU)
+Total docs containing doggy:     0       0 wallclock secs ( 0.00 usr +  0.01 sys =  0.01 CPU)
+Total docs containing bike:      1       0 wallclock secs ( 0.22 usr +  0.00 sys =  0.22 CPU)
+Total docs containing author:    141     0 wallclock secs ( 0.32 usr +  0.00 sys =  0.32 CPU)
+Total docs containing CODE:      0       0 wallclock secs ( 0.01 usr +  0.00 sys =  0.01 CPU)
+Total docs containing apple:     42      0 wallclock secs ( 0.32 usr +  0.00 sys =  0.32 CPU)
+Total docs containing foo:       0       0 wallclock secs ( 0.00 usr +  0.00 sys =  0.00 CPU)
+Total docs containing apache:    0       0 wallclock secs ( 0.00 usr +  0.00 sys =  0.00 CPU)
+Total docs containing the:       153     1 wallclock secs ( 0.49 usr +  0.00 sys =  0.49 CPU)
+Total docs containing killer:    5       0 wallclock secs ( 0.25 usr +  0.00 sys =  0.25 CPU)
+Total docs containing hungry:    8       0 wallclock secs ( 0.31 usr +  0.00 sys =  0.31 CPU)
+Total docs containing a:         0       0 wallclock secs ( 0.00 usr +  0.00 sys =  0.00 CPU)
+Total docs containing of:        153     1 wallclock secs ( 0.29 usr +  0.00 sys =  0.29 CPU)
+Total docs containing party:     39      0 wallclock secs ( 0.28 usr +  0.00 sys =  0.28 CPU)
+ 
+ 
+=====================
