@@ -1,0 +1,6 @@
+Revision history for Perl extension BitstringSearch.
+
+0.01  Wed Nov 26 15:17:07 2003
+	- original version; created by h2xs 1.22 with options
+		-AXcfn BitstringSearch
+
