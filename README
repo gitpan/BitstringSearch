@@ -1,4 +1,4 @@
-BitstringSearch version 0.01
+BitstringSearch version 0.03
 ======================
 
 BitstringSearch is a text document indexer for fast word searches.
@@ -16,9 +16,10 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  none
+  DB_File
+  Fcntl
 
-COPYRIGHT AND LICENCE
+COPYRIGHT AND LICENSE
 
 Copyright (c) 2003 by Richard Zilavec
  
